@@ -1,4 +1,5 @@
 use std::{collections::HashMap, fmt::Debug, fs::OpenOptions, io::Write};
+use std::time::Instant;
 
 use bytes::Bytes;
 use itertools::Itertools;
@@ -28,6 +29,7 @@ pub enum CallType {
 
 #[derive(Clone, Debug, Serialize, Default, Deserialize)]
 pub struct SingleCall {
+    pub sec_elapsed: u64,
     pub call_type: CallType,
     pub caller: String,
     pub contract: String,
@@ -48,7 +50,7 @@ pub struct CallPrinter {
     pub current_layer: usize,
     pub results: CallPrinterResult,
     pub offsets: usize,
-
+    pub start_time: Instant,
     entry: bool,
 }
 
@@ -58,6 +60,7 @@ impl CallPrinter {
             address_to_name,
             current_layer: 0,
             results: Default::default(),
+            start_time: Instant::now(),
             entry: true,
             offsets: 0,
         }
@@ -86,8 +89,8 @@ impl CallPrinter {
             .map(|(layer, call)| {
                 let padding = (0..*layer).map(|_| "  ").join("");
                 format!(
-                    "{}[{:?}][{} -> {}] ({}) > ({})",
-                    padding, call.call_type, call.caller, call.contract, call.input, call.results
+                    "{}[{}][{:?}][{} -> {}] ({}) > ({})",
+                    padding, call.sec_elapsed, call.call_type, call.caller, call.contract, call.input, call.results
                 )
             })
             .join("\n")
@@ -128,6 +131,7 @@ where
             self.results.data.push((
                 self.current_layer,
                 SingleCall {
+                    sec_elapsed: self.start_time.elapsed().as_secs(),
                     call_type: CallType::FirstLevelCall,
                     caller: self.translate_address(interp.contract.caller),
                     contract: self.translate_address(interp.contract.address),
@@ -171,6 +175,7 @@ where
             self.results.data.push((
                 self.current_layer,
                 SingleCall {
+                    sec_elapsed: self.start_time.elapsed().as_secs(),
                     call_type: CallType::Event,
                     caller: self.translate_address(interp.contract.caller),
                     contract: self.translate_address(interp.contract.address),
@@ -234,6 +239,7 @@ where
             self.results.data.push((
                 self.current_layer,
                 SingleCall {
+                    sec_elapsed: self.start_time.elapsed().as_secs(),
                     call_type,
                     caller: self.translate_address(caller),
                     contract: self.translate_address(target),
