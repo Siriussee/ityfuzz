@@ -299,6 +299,7 @@ where
         if state.corpus().count() == 0 {
             Err(Error::empty("No entries in corpus".to_owned()))
         } else {
+            // Schedule a target contract first, if unfuzzed
             let id = state
                 .corpus()
                 .current()

@@ -131,30 +131,30 @@ where
             let testcase = state.corpus().get(i).unwrap().borrow().clone();
             let last_input = testcase.input().as_ref().expect("Input should be present");
 
-            let mut last_state: EVMStagedVMState = Default::default();
-            for (mut tx, call_until) in Self::get_call_seq(&last_input.sstate, state) {
-                if tx.step {
-                    self.call_printer.deref().borrow_mut().mark_step_tx();
-                }
-                unsafe {
-                    CALL_UNTIL = call_until;
-                }
-                if !tx.sstate.initialized {
-                    tx.sstate = last_state.clone();
-                }
-                let res = exec.execute(&tx, state);
-                last_state = res.new_state.clone();
-                self.call_printer
-                    .deref()
-                    .borrow_mut()
-                    .mark_new_tx(last_state.state.post_execution.len());
-            }
-            unsafe {
-                CALL_UNTIL = u32::MAX;
-            }
-            unsafe {
-                EVAL_COVERAGE = true;
-            }
+            // let mut last_state: EVMStagedVMState = Default::default();
+            // for (mut tx, call_until) in Self::get_call_seq(&last_input.sstate, state) {
+            //     if tx.step {
+            //         self.call_printer.deref().borrow_mut().mark_step_tx();
+            //     }
+            //     unsafe {
+            //         CALL_UNTIL = call_until;
+            //     }
+            //     if !tx.sstate.initialized {
+            //         tx.sstate = last_state.clone();
+            //     }
+            //     let res = exec.execute(&tx, state);
+            //     last_state = res.new_state.clone();
+            //     self.call_printer
+            //         .deref()
+            //         .borrow_mut()
+            //         .mark_new_tx(last_state.state.post_execution.len());
+            // }
+            // unsafe {
+            //     CALL_UNTIL = u32::MAX;
+            // }
+            // unsafe {
+            //     EVAL_COVERAGE = true;
+            // }
 
             {
                 if last_input.step {

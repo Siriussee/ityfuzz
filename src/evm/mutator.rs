@@ -249,6 +249,7 @@ where
         let mut mutated = false;
 
         {
+            // Mutate state (20% chance) -- only happens if next infant state is different from current state
             if !input.is_step() && state.rand_mut().below(100) < 20_u64 {
                 let old_idx = input.get_state_idx();
                 let (idx, new_state) = state.get_infant_state(&mut self.infant_scheduler).unwrap();
@@ -264,6 +265,7 @@ where
                 }
             }
 
+            // Mutate input -- mutate call pattern, call value or called method, but not called contract (60% chance)
             if input.get_staged_state().state.has_post_execution() &&
                 !input.is_step() &&
                 state.rand_mut().below(100) < 60_u64

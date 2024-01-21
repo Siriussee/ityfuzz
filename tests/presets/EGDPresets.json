@@ -1,0 +1,16 @@
+[
+  {
+    "calls": [
+      "0xc657c718",
+      "0xc657c718",
+      "0xc657c718",
+      "0xc657c718",
+      "0xc657c718",
+      "0xc657c718",
+      "0x3a4b66f1",
+      "0xe5d6bf02",
+      "0x4641257d"],
+    "exploit_name": "EGD-Finance",
+    "function_sigs": ["0x4641257d", "0x3a4b66f1", "0xe5d6bf02", "0xc657c718"]
+  }
+]

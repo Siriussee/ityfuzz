@@ -188,7 +188,7 @@ where
         self.state.metadata_map_mut().insert(ABIMap::new());
         self.setup_default_callers(loader);
         self.setup_contract_callers(loader);
-        self.init_cheatcode_contract();
+        self.init_cheatcode_contract(); // Contracts that can tweak chain state
         self.initialize_contract(loader);
         self.initialize_source_map(loader);
         self.initialize_corpus(loader)
