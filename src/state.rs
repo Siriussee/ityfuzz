@@ -187,7 +187,7 @@ where
     solutions: OnDiskCorpus<VI>,
 
     /// Amount of total executions
-    executions: usize,
+    pub(crate) executions: usize,
 
     /// Metadata of the state, required for implementing [HasMetadata] and
     /// [HasNamedMetadata] trait

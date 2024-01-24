@@ -1,4 +1,13 @@
-use std::{cell::RefCell, fs, ops::Deref, rc::Rc};
+use std::{
+    cell::RefCell,
+    fs,
+    ops::Deref,
+    rc::Rc,
+    path,
+    time::Instant
+};
+use std::fs::OpenOptions;
+use std::io::Write;
 
 use itertools::Itertools;
 use libafl::{
@@ -15,7 +24,7 @@ use crate::{
         host::CALL_UNTIL,
         input::EVMInput,
         middlewares::{
-            call_printer::CallPrinter,
+            call_printer::{CallPrinter,FuzzRoundResult},
             coverage::{Coverage, EVAL_COVERAGE},
             middleware::MiddlewareType,
         },
@@ -28,6 +37,9 @@ use crate::{
 
 pub struct CoverageStage<OT> {
     pub last_corpus_idx: usize,
+    pub last_fuzz_round: usize,
+    pub last_execution_count: usize,
+    pub start_time: Instant,
     executor: Rc<RefCell<EVMQueueExecutor>>,
     coverage: Rc<RefCell<Coverage>>,
     call_printer: Rc<RefCell<CallPrinter>>,
@@ -52,6 +64,9 @@ impl<OT> CoverageStage<OT> {
         }
         Self {
             last_corpus_idx: 0,
+            last_fuzz_round: 0,
+            last_execution_count: 0,
+            start_time: Instant::now(),
             executor,
             coverage,
             call_printer,
@@ -112,7 +127,32 @@ where
         _manager: &mut EM,
         _corpus_idx: CorpusId,
     ) -> Result<(), Error> {
+        // Advance fuzzing round
         let last_idx = state.corpus().last();
+
+        // Write this round's info
+        let rounds_path = format!("{}/fuzz_rounds", "./work_dir".to_string()).to_string();
+        let path = std::path::Path::new(&rounds_path);
+        if !path.exists() {
+            std::fs::create_dir_all(path).unwrap();
+        }
+        let mut json_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(false)
+            .open(format!("{}.json", format!("{}/{}", rounds_path, self.last_fuzz_round)))
+            .unwrap();
+
+        let mut data = FuzzRoundResult {
+            fuzzing_round: self.last_fuzz_round,
+            sec_elapsed: self.start_time.elapsed().as_secs(),
+            total_mutations: state.executions - self.last_execution_count,
+            total_interesting: 0,
+        };
+
+        self.last_execution_count = state.executions;
+        self.last_fuzz_round += 1;
+
         if last_idx.is_none() {
             return Ok(());
         }
@@ -126,35 +166,37 @@ where
 
         let meta = state.metadata_map().get::<BugMetadata>().unwrap().clone();
         let mut current_idx = CorpusId::from(self.last_corpus_idx);
+        // Add total interesting input to data
+        data.total_interesting = state.corpus().count() - self.last_corpus_idx + 1;
         while let Some(i) = state.corpus().next(current_idx) {
             self.call_printer.deref().borrow_mut().cleanup();
             let testcase = state.corpus().get(i).unwrap().borrow().clone();
             let last_input = testcase.input().as_ref().expect("Input should be present");
 
-            // let mut last_state: EVMStagedVMState = Default::default();
-            // for (mut tx, call_until) in Self::get_call_seq(&last_input.sstate, state) {
-            //     if tx.step {
-            //         self.call_printer.deref().borrow_mut().mark_step_tx();
-            //     }
-            //     unsafe {
-            //         CALL_UNTIL = call_until;
-            //     }
-            //     if !tx.sstate.initialized {
-            //         tx.sstate = last_state.clone();
-            //     }
-            //     let res = exec.execute(&tx, state);
-            //     last_state = res.new_state.clone();
-            //     self.call_printer
-            //         .deref()
-            //         .borrow_mut()
-            //         .mark_new_tx(last_state.state.post_execution.len());
-            // }
-            // unsafe {
-            //     CALL_UNTIL = u32::MAX;
-            // }
-            // unsafe {
-            //     EVAL_COVERAGE = true;
-            // }
+            let mut last_state: EVMStagedVMState = Default::default();
+            for (mut tx, call_until) in Self::get_call_seq(&last_input.sstate, state) {
+                if tx.step {
+                    self.call_printer.deref().borrow_mut().mark_step_tx();
+                }
+                unsafe {
+                    CALL_UNTIL = call_until;
+                }
+                if !tx.sstate.initialized {
+                    tx.sstate = last_state.clone();
+                }
+                let res = exec.execute(&tx, state);
+                last_state = res.new_state.clone();
+                self.call_printer
+                    .deref()
+                    .borrow_mut()
+                    .mark_new_tx(last_state.state.post_execution.len());
+            }
+            unsafe {
+                CALL_UNTIL = u32::MAX;
+            }
+            unsafe {
+                EVAL_COVERAGE = true;
+            }
 
             {
                 if last_input.step {
@@ -182,6 +224,9 @@ where
 
             current_idx = i;
         }
+
+        let json = serde_json::to_string(&data).unwrap();
+        json_file.write_all(json.as_bytes()).unwrap();
 
         exec.host.remove_middlewares_by_ty(&MiddlewareType::CallPrinter);
 

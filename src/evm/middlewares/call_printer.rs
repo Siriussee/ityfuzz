@@ -44,6 +44,14 @@ pub struct CallPrinterResult {
     pub data: Vec<(usize, SingleCall)>,
 }
 
+#[derive(Clone, Debug, Serialize, Default, Deserialize)]
+pub struct FuzzRoundResult {
+    pub fuzzing_round: usize,
+    pub sec_elapsed: u64,
+    pub total_mutations: usize,
+    pub total_interesting: usize
+}
+
 #[derive(Clone, Debug)]
 pub struct CallPrinter {
     pub address_to_name: HashMap<EVMAddress, String>,
