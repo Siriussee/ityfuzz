@@ -143,11 +143,20 @@ where
             fuzzing_round: self.last_fuzz_round,
             sec_elapsed: self.start_time.elapsed().as_secs(),
             total_mutations: state.executions - self.last_execution_count,
-            total_interesting: 0,
+            total_interesting: state.corpus().count() - self.last_corpus_idx + 1,
         };
 
         self.last_execution_count = state.executions;
         self.last_fuzz_round += 1;
+
+        self.round_info.data.push(data);
+
+        let json = serde_json::to_string(&self.round_info).unwrap();
+
+        // clear the round info file and write latest round info to it
+        self.round_info_file.set_len(0).unwrap();
+        self.round_info_file.rewind().unwrap();
+        self.round_info_file.write_all(json.as_bytes()).unwrap();
 
         if last_idx.is_none() {
             return Ok(());
@@ -162,8 +171,6 @@ where
 
         let meta = state.metadata_map().get::<BugMetadata>().unwrap().clone();
         let mut current_idx = CorpusId::from(self.last_corpus_idx);
-        // Add total interesting input to data
-        data.total_interesting = state.corpus().count() - self.last_corpus_idx + 1;
         while let Some(i) = state.corpus().next(current_idx) {
             self.call_printer.deref().borrow_mut().cleanup();
             let testcase = state.corpus().get(i).unwrap().borrow().clone();
@@ -220,15 +227,6 @@ where
 
             current_idx = i;
         }
-
-        self.round_info.data.push(data);
-
-        let json = serde_json::to_string(&self.round_info).unwrap();
-
-        // clear the round info file and write latest round info to it
-        self.round_info_file.set_len(0).unwrap();
-        self.round_info_file.rewind().unwrap();
-        self.round_info_file.write_all(json.as_bytes()).unwrap();
 
         exec.host.remove_middlewares_by_ty(&MiddlewareType::CallPrinter);
 
