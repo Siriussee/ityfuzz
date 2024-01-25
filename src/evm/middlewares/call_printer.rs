@@ -45,7 +45,12 @@ pub struct CallPrinterResult {
 }
 
 #[derive(Clone, Debug, Serialize, Default, Deserialize)]
-pub struct FuzzRoundResult {
+pub struct RoundPrinterResult {
+    pub data: Vec<SingleRound>,
+}
+
+#[derive(Clone, Debug, Serialize, Default, Deserialize)]
+pub struct SingleRound {
     pub fuzzing_round: usize,
     pub sec_elapsed: u64,
     pub total_mutations: usize,

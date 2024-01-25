@@ -6,8 +6,8 @@ use std::{
     path,
     time::Instant
 };
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::fs::{File, OpenOptions};
+use std::io::{Seek, Write};
 
 use itertools::Itertools;
 use libafl::{
@@ -24,7 +24,7 @@ use crate::{
         host::CALL_UNTIL,
         input::EVMInput,
         middlewares::{
-            call_printer::{CallPrinter,FuzzRoundResult},
+            call_printer::{CallPrinter, SingleRound, RoundPrinterResult},
             coverage::{Coverage, EVAL_COVERAGE},
             middleware::MiddlewareType,
         },
@@ -40,6 +40,8 @@ pub struct CoverageStage<OT> {
     pub last_fuzz_round: usize,
     pub last_execution_count: usize,
     pub start_time: Instant,
+    round_info: RoundPrinterResult,
+    round_info_file: fs::File,
     executor: Rc<RefCell<EVMQueueExecutor>>,
     coverage: Rc<RefCell<Coverage>>,
     call_printer: Rc<RefCell<CallPrinter>>,
@@ -62,11 +64,18 @@ impl<OT> CoverageStage<OT> {
         if !std::path::Path::new(&trace_dir).exists() {
             std::fs::create_dir_all(&trace_dir).unwrap();
         }
+        let mut round_info_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(false)
+            .open(format!("{}/round_info.json", work_dir)).unwrap();
         Self {
             last_corpus_idx: 0,
             last_fuzz_round: 0,
             last_execution_count: 0,
             start_time: Instant::now(),
+            round_info: Default::default(),
+            round_info_file: round_info_file,
             executor,
             coverage,
             call_printer,
@@ -130,20 +139,7 @@ where
         // Advance fuzzing round
         let last_idx = state.corpus().last();
 
-        // Write this round's info
-        let rounds_path = format!("{}/fuzz_rounds", "./work_dir".to_string()).to_string();
-        let path = std::path::Path::new(&rounds_path);
-        if !path.exists() {
-            std::fs::create_dir_all(path).unwrap();
-        }
-        let mut json_file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .append(false)
-            .open(format!("{}.json", format!("{}/{}", rounds_path, self.last_fuzz_round)))
-            .unwrap();
-
-        let mut data = FuzzRoundResult {
+        let mut data = SingleRound {
             fuzzing_round: self.last_fuzz_round,
             sec_elapsed: self.start_time.elapsed().as_secs(),
             total_mutations: state.executions - self.last_execution_count,
@@ -225,8 +221,14 @@ where
             current_idx = i;
         }
 
-        let json = serde_json::to_string(&data).unwrap();
-        json_file.write_all(json.as_bytes()).unwrap();
+        self.round_info.data.push(data);
+
+        let json = serde_json::to_string(&self.round_info).unwrap();
+
+        // clear the round info file and write latest round info to it
+        self.round_info_file.set_len(0).unwrap();
+        self.round_info_file.rewind().unwrap();
+        self.round_info_file.write_all(json.as_bytes()).unwrap();
 
         exec.host.remove_middlewares_by_ty(&MiddlewareType::CallPrinter);
 
