@@ -34,6 +34,7 @@ use crate::{
     oracle::BugMetadata,
     state::HasInfantStateState,
 };
+use crate::state::{HasCurrentInputIdx, HasExecutionResult, HasPresets};
 
 pub struct CoverageStage<OT> {
     pub last_corpus_idx: usize,
@@ -120,6 +121,43 @@ impl<OT> CoverageStage<OT> {
         }
         vec![]
     }
+
+    pub fn get_call_seq_as_string(call_printer: &CallPrinter, vm_state: &EVMStagedVMState, state: &mut EVMFuzzState) -> Vec<String> {
+        if let Some(from_idx) = vm_state.trace.from_idx {
+            let corpus_item = state.get_infant_state_state().corpus().get(from_idx.into());
+            // This happens when full_trace feature is not enabled, the corpus item may be
+            // discarded
+            if corpus_item.is_err() {
+                return vec![];
+            }
+            let testcase = corpus_item.unwrap().clone().into_inner();
+            let testcase_input = testcase.input();
+            if testcase_input.is_none() {
+                return vec![];
+            }
+            let prev_state = testcase_input.clone().unwrap();
+            let prev = Self::get_call_seq_as_string(call_printer, testcase_input.as_ref().unwrap(), state);
+
+            return [
+                prev,
+                vm_state
+                    .trace
+                    .transactions
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, ci)| {
+                        if idx == 0 {
+                            call_printer.translate_address(ci.to_input(prev_state.clone()).0.contract)
+                        } else {
+                            call_printer.translate_address(ci.to_input(EVMStagedVMState::new_uninitialized()).0.contract)
+                        }
+                    })
+                    .collect_vec(),
+            ]
+                .concat();
+        }
+        vec![]
+    }
 }
 
 impl<EM, Z, OT> Stage<EVMFuzzExecutor<OT>, EM, Z> for CoverageStage<OT>
@@ -138,8 +176,18 @@ where
     ) -> Result<(), Error> {
         // Advance fuzzing round
         let last_idx = state.corpus().last();
+        let target_contract = self.call_printer.deref().borrow_mut().translate_address(
+            state.corpus().get(CorpusId::from(state.get_current_input_idx())).unwrap().clone().into_inner().input().as_ref().unwrap().contract.clone()
+        );
+        let previous_transactions = Self::get_call_seq_as_string(
+            self.call_printer.deref().borrow_mut().deref(),
+            &state.corpus().get(CorpusId::from(state.get_current_input_idx())).unwrap().clone().into_inner().input().as_ref().unwrap().sstate,
+            state
+        );
 
         let mut data = SingleRound {
+            contract: target_contract,
+            prev_contracts: previous_transactions,
             fuzzing_round: self.last_fuzz_round,
             sec_elapsed: self.start_time.elapsed().as_secs(),
             total_mutations: state.executions - self.last_execution_count,

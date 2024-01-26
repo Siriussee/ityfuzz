@@ -51,6 +51,8 @@ pub struct RoundPrinterResult {
 
 #[derive(Clone, Debug, Serialize, Default, Deserialize)]
 pub struct SingleRound {
+    pub contract: String,
+    pub prev_contracts: Vec<String>,
     pub fuzzing_round: usize,
     pub sec_elapsed: u64,
     pub total_mutations: usize,
@@ -128,7 +130,7 @@ impl CallPrinter {
         json_file.write_all(json.as_bytes()).unwrap();
     }
 
-    fn translate_address(&self, a: EVMAddress) -> String {
+    pub fn translate_address(&self, a: EVMAddress) -> String {
         self.address_to_name.get(&a).unwrap_or(&format!("{:?}", a)).to_string()
     }
 }
