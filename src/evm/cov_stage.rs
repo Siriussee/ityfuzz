@@ -179,6 +179,7 @@ where
         let target_contract = self.call_printer.deref().borrow_mut().translate_address(
             state.corpus().get(CorpusId::from(state.get_current_input_idx())).unwrap().clone().into_inner().input().as_ref().unwrap().contract.clone()
         );
+        // For the current fuzzing input (s,t), record how it is formed ==> txs forming s
         let previous_transactions = Self::get_call_seq_as_string(
             self.call_printer.deref().borrow_mut().deref(),
             &state.corpus().get(CorpusId::from(state.get_current_input_idx())).unwrap().clone().into_inner().input().as_ref().unwrap().sstate,
@@ -222,6 +223,10 @@ where
 
         let meta = state.metadata_map().get::<BugMetadata>().unwrap().clone();
         let mut current_idx = CorpusId::from(self.last_corpus_idx);
+        // For each new interesting corpus item (s'',t''), replay how it is formed
+        // Comes two ways:
+        //  1. By mutating t of current fuzzing input (s, t) => exec(s, t') => (s'', t'')
+        //  2. By mutating s of current fuzzing input (s, t) => exec(s', t) => (s'', t'')
         while let Some(i) = state.corpus().next(current_idx) {
             self.call_printer.deref().borrow_mut().cleanup();
             data.total_interesting += 1;
