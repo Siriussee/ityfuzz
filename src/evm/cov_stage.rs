@@ -122,7 +122,7 @@ impl<OT> CoverageStage<OT> {
         vec![]
     }
 
-    pub fn get_call_seq_as_string(call_printer: &CallPrinter, vm_state: &EVMStagedVMState, state: &mut EVMFuzzState) -> Vec<String> {
+    fn get_call_seq_as_string(call_printer: &CallPrinter, vm_state: &EVMStagedVMState, state: &mut EVMFuzzState) -> Vec<String> {
         if let Some(from_idx) = vm_state.trace.from_idx {
             let corpus_item = state.get_infant_state_state().corpus().get(from_idx.into());
             // This happens when full_trace feature is not enabled, the corpus item may be
@@ -191,26 +191,29 @@ where
             fuzzing_round: self.last_fuzz_round,
             sec_elapsed: self.start_time.elapsed().as_secs(),
             total_mutations: state.executions - self.last_execution_count,
-            total_interesting: state.corpus().count() - self.last_corpus_idx + 1,
+            total_interesting: 0,
         };
 
         self.last_execution_count = state.executions;
         self.last_fuzz_round += 1;
 
-        self.round_info.data.push(data);
-
-        let json = serde_json::to_string(&self.round_info).unwrap();
-
-        // clear the round info file and write latest round info to it
-        self.round_info_file.set_len(0).unwrap();
-        self.round_info_file.rewind().unwrap();
-        self.round_info_file.write_all(json.as_bytes()).unwrap();
-
         if last_idx.is_none() {
+            // clear the round info file and write latest round info to it
+            self.round_info.data.push(data);
+            let json = serde_json::to_string(&self.round_info).unwrap();
+            self.round_info_file.set_len(0).unwrap();
+            self.round_info_file.rewind().unwrap();
+            self.round_info_file.write_all(json.as_bytes()).unwrap();
             return Ok(());
         }
         let last_idx = last_idx.unwrap().into();
         if self.last_corpus_idx == last_idx {
+            // clear the round info file and write latest round info to it
+            self.round_info.data.push(data);
+            let json = serde_json::to_string(&self.round_info).unwrap();
+            self.round_info_file.set_len(0).unwrap();
+            self.round_info_file.rewind().unwrap();
+            self.round_info_file.write_all(json.as_bytes()).unwrap();
             return Ok(());
         }
 
@@ -221,6 +224,7 @@ where
         let mut current_idx = CorpusId::from(self.last_corpus_idx);
         while let Some(i) = state.corpus().next(current_idx) {
             self.call_printer.deref().borrow_mut().cleanup();
+            data.total_interesting += 1;
             let testcase = state.corpus().get(i).unwrap().borrow().clone();
             let last_input = testcase.input().as_ref().expect("Input should be present");
 
@@ -277,6 +281,13 @@ where
         }
 
         exec.host.remove_middlewares_by_ty(&MiddlewareType::CallPrinter);
+
+        // clear the round info file and write latest round info to it
+        self.round_info.data.push(data);
+        let json = serde_json::to_string(&self.round_info).unwrap();
+        self.round_info_file.set_len(0).unwrap();
+        self.round_info_file.rewind().unwrap();
+        self.round_info_file.write_all(json.as_bytes()).unwrap();
 
         if self.last_corpus_idx == last_idx {
             return Ok(());
