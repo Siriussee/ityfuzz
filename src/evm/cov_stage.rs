@@ -35,6 +35,7 @@ use crate::{
     state::HasInfantStateState,
 };
 use crate::state::{HasCurrentInputIdx, HasExecutionResult, HasPresets};
+use tracing::info;
 
 pub struct CoverageStage<OT> {
     pub last_corpus_idx: usize,
@@ -122,7 +123,7 @@ impl<OT> CoverageStage<OT> {
         vec![]
     }
 
-    fn get_call_seq_as_string(call_printer: &CallPrinter, vm_state: &EVMStagedVMState, state: &mut EVMFuzzState) -> Vec<String> {
+    fn get_call_seq_as_string(call_printer: &CallPrinter, vm_state: &mut EVMStagedVMState, state: &mut EVMFuzzState) -> Vec<String> {
         if let Some(from_idx) = vm_state.trace.from_idx {
             let corpus_item = state.get_infant_state_state().corpus().get(from_idx.into());
             // This happens when full_trace feature is not enabled, the corpus item may be
@@ -136,7 +137,7 @@ impl<OT> CoverageStage<OT> {
                 return vec![];
             }
             let prev_state = testcase_input.clone().unwrap();
-            let prev = Self::get_call_seq_as_string(call_printer, testcase_input.as_ref().unwrap(), state);
+            let prev = Self::get_call_seq_as_string(call_printer, &mut testcase_input.clone().unwrap(), state);
 
             return [
                 prev,
@@ -179,10 +180,11 @@ where
         let target_contract = self.call_printer.deref().borrow_mut().translate_address(
             state.corpus().get(CorpusId::from(state.get_current_input_idx())).unwrap().clone().into_inner().input().as_ref().unwrap().contract.clone()
         );
+        let input_state = &mut state.corpus().get(CorpusId::from(state.get_current_input_idx())).unwrap().clone().into_inner().input().as_ref().unwrap().sstate.clone();
         // For the current fuzzing input (s,t), record how it is formed ==> txs forming s
         let previous_transactions = Self::get_call_seq_as_string(
             self.call_printer.deref().borrow_mut().deref(),
-            &state.corpus().get(CorpusId::from(state.get_current_input_idx())).unwrap().clone().into_inner().input().as_ref().unwrap().sstate,
+            input_state,
             state
         );
 
@@ -194,6 +196,9 @@ where
             total_mutations: state.executions - self.last_execution_count,
             total_interesting: 0,
         };
+
+        // info!("state: {}", serde_json::to_string(&input_state.trace).unwrap());
+        // info!("input: {}", serde_json::to_string(&data).unwrap());
 
         self.last_execution_count = state.executions;
         self.last_fuzz_round += 1;

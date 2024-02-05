@@ -149,6 +149,18 @@ pub trait HasPresets {
     fn get_next_call(&mut self) -> Option<(EVMAddress, BoxedABI)>;
 }
 
+pub trait HasFavored {
+    fn init_favored(
+        &mut self,
+        templates: Vec<ExploitTemplate>,
+    );
+    // Returns whether a signature is favored
+    fn is_favored (
+        &mut self,
+        signature: &[u8; 4],
+    ) -> bool;
+}
+
 /// The global state of ItyFuzz, containing all the information needed for
 /// fuzzing Implements LibAFL's [`State`] trait and passed to all the fuzzing
 /// components as a reference
@@ -222,6 +234,9 @@ where
     last_report_time: Option<Duration>,
 
     pub interesting_signatures: Vec<[u8; 4]>,
+
+    // Allow adding favored signatures
+    pub favored_signatures: Vec<[u8; 4]>,
 
     pub sig_to_addr_abi_map: std::collections::HashMap<[u8; 4], (EVMAddress, BoxedABI)>,
 
@@ -300,6 +315,7 @@ where
             last_report_time: None,
             phantom: Default::default(),
             interesting_signatures: Vec::new(),
+            favored_signatures: Vec::new(),
             sig_to_addr_abi_map: Default::default(),
         }
     }
@@ -853,6 +869,34 @@ where
     /// This information is used by fuzzer `maybe_report_progress`.
     fn last_report_time_mut(&mut self) -> &mut Option<Duration> {
         &mut self.last_report_time
+    }
+}
+
+impl<VI, VS, Loc, Addr, Out, CI> HasFavored for FuzzState<VI, VS, Loc, Addr, Out, CI>
+    where
+        VS: Default + VMStateT,
+        VI: VMInputT<VS, Loc, Addr, CI> + Input,
+        Addr: Serialize + DeserializeOwned + Debug + Clone,
+        Loc: Serialize + DeserializeOwned + Debug + Clone,
+        Out: Serialize + DeserializeOwned + Default + Into<Vec<u8>> + Clone,
+        CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
+{
+    fn init_favored (
+        &mut self,
+        templates: Vec<ExploitTemplate>,
+    ) {
+        for template in templates {
+            for sig in template.function_sigs {
+                self.favored_signatures.push(sig.value);
+            }
+        }
+    }
+    // Returns whether a signature is favored
+    fn is_favored (
+        &mut self,
+        signature: &[u8; 4],
+    ) -> bool {
+        return self.favored_signatures.contains(signature)
     }
 }
 

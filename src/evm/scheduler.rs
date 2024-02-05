@@ -1,3 +1,4 @@
+use libafl::prelude::HasRand;
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
 /// Corpus schedulers for ItyFuzz
@@ -10,9 +11,13 @@ use libafl::{
     state::{HasCorpus, UsesState},
     Error,
 };
-use libafl_bolts::impl_serdeany;
+use libafl_bolts::{
+    impl_serdeany,
+    rands::Rand,
+};
 use revm_primitives::HashSet;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use super::{
     host::{BRANCH_STATUS, BRANCH_STATUS_IDX},
@@ -28,6 +33,7 @@ use crate::{
     input::VMInputT,
     power_sched::{PowerMutationalStageWithId, TestcaseScoreWithId},
 };
+use crate::state::HasFavored;
 
 /// The status of the branch, whether it is covered on true, false or both
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -207,7 +213,7 @@ where
 
 impl<S> Scheduler for PowerABIScheduler<S>
 where
-    S: HasCorpus<Input = EVMInput> + HasTestcase + HasMetadata,
+    S: HasCorpus<Input = EVMInput> + HasTestcase + HasMetadata + HasFavored + HasRand,
 {
     fn on_add(&mut self, state: &mut Self::State, idx: CorpusId) -> Result<(), Error> {
         // adding power scheduling information based on code size
@@ -299,7 +305,6 @@ where
         if state.corpus().count() == 0 {
             Err(Error::empty("No entries in corpus".to_owned()))
         } else {
-            // Schedule a target contract first, if unfuzzed
             let id = state
                 .corpus()
                 .current()
@@ -307,14 +312,31 @@ where
                 .flatten()
                 .unwrap_or_else(|| state.corpus().first().unwrap());
             self.set_current_scheduled(state, Some(id))?;
-            Ok(id)
+            info!("Currently scheduled corpus ID: {}", id.clone().to_string());
+            let current_input = state.corpus().get(id).unwrap().clone().into_inner().input().clone();
+            info!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
+            match current_input.unwrap().data.clone() {
+                // If has currently scheduled data, check whether signature is included
+                Some(data) => {
+                    let scheduled_sig = data.function.clone();
+                    //Skip current signature, if unfuzzed -- note: testcase function is [0,0,0,0] for half, it means what? fallback?
+                    if !state.is_favored(&scheduled_sig) &&  state.rand_mut().below(100) < 95 {
+                        return self.next(state)
+                    }
+                    return Ok(id)
+                }
+                // Otherwise, use this input; TODO: Check contract ID
+                None => {
+                    return Ok(id)
+                }
+            }
         }
     }
 }
 
 impl<S> RemovableScheduler for PowerABIScheduler<S>
 where
-    S: HasCorpus<Input = EVMInput> + HasTestcase + HasMetadata,
+    S: HasCorpus<Input = EVMInput> + HasTestcase + HasMetadata + HasFavored + HasRand,
 {
     fn on_remove(
         &mut self,
@@ -350,7 +372,7 @@ where
 
 impl<S> ABIScheduler for PowerABIScheduler<S>
 where
-    S: HasCorpus<Input = EVMInput> + HasTestcase + HasMetadata,
+    S: HasCorpus<Input = EVMInput> + HasTestcase + HasMetadata + HasFavored + HasRand,
 {
     fn on_add_artifacts(
         &mut self,

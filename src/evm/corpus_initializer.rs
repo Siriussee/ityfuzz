@@ -71,6 +71,7 @@ where
     state: &'a mut EVMFuzzState,
     #[cfg(feature = "use_presets")]
     presets: Vec<&'a dyn Preset<EVMInput, EVMState, SC>>,
+    favored: Vec<&'a dyn Preset<EVMInput, EVMState, SC>>,
     work_dir: String,
 }
 
@@ -175,6 +176,7 @@ where
             state,
             #[cfg(feature = "use_presets")]
             presets: vec![],
+            favored: vec![],
             work_dir,
         }
     }
@@ -182,6 +184,10 @@ where
     #[cfg(feature = "use_presets")]
     pub fn register_preset(&mut self, preset: &'a dyn Preset<EVMInput, EVMState, SC>) {
         self.presets.push(preset);
+    }
+
+    pub fn register_favored(&mut self, favored: &'a dyn Preset<EVMInput, EVMState, SC>) {
+        self.favored.push(favored);
     }
 
     pub fn initialize(&mut self, loader: &mut ContractLoader) -> EVMInitializationArtifacts {
@@ -352,14 +358,14 @@ where
                     .insert(contract.deployed_address, build_artifact.clone());
             }
 
-            {
-                handle_contract_insertion!(
-                    self.state,
-                    self.executor.host,
-                    contract.deployed_address,
-                    contract.abi.clone()
-                );
-            }
+            // {
+            //     handle_contract_insertion!(
+            //         self.state,
+            //         self.executor.host,
+            //         contract.deployed_address,
+            //         contract.abi.clone()
+            //     );
+            // }
 
             if unsafe {
                 BLACKLIST_ADDR.is_some() && BLACKLIST_ADDR.as_ref().unwrap().contains(&contract.deployed_address)

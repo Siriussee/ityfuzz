@@ -67,7 +67,7 @@ use crate::{
     fuzzer::{ItyFuzzer, REPLAY, RUN_FOREVER},
     oracle::BugMetadata,
     scheduler::SortedDroppingScheduler,
-    state::{FuzzState, HasCaller, HasExecutionResult, HasPresets},
+    state::{FuzzState, HasCaller, HasExecutionResult, HasPresets, HasFavored},
 };
 
 #[allow(clippy::type_complexity)]
@@ -252,6 +252,12 @@ pub fn evm_fuzzer(
 
         state.init_presets(has_preset_match, matched_templates.clone(), sig_to_addr_abi_map);
     }
+
+    {
+        let favored_templates = ExploitTemplate::from_filename("./tests/presets/favored_sigs.json".to_owned());
+        state.init_favored(favored_templates.clone());
+    }
+
     let cov_middleware = Rc::new(RefCell::new(Coverage::new(
         artifacts.address_to_name.clone(),
         config.work_dir.clone(),
