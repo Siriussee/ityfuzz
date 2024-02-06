@@ -154,6 +154,8 @@ pub trait HasFavored {
         &mut self,
         templates: Vec<ExploitTemplate>,
     );
+    // Returns if current run has favored signatures
+    fn has_favored(&self) -> bool;
     // Returns whether a signature is favored
     fn is_favored (
         &mut self,
@@ -891,6 +893,10 @@ impl<VI, VS, Loc, Addr, Out, CI> HasFavored for FuzzState<VI, VS, Loc, Addr, Out
             }
         }
     }
+    fn has_favored(&self) -> bool {
+        !self.favored_signatures.is_empty()
+    }
+
     // Returns whether a signature is favored
     fn is_favored (
         &mut self,

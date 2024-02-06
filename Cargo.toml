@@ -31,6 +31,7 @@ real_balance = []
 full_trace = []
 force_cache = []
 use_presets = []
+use_favored = []
 print_logs = []
 z3_debug = []
 sui_support = [

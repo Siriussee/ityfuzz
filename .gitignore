@@ -21,3 +21,5 @@ combined.json
 Move.lock
 /w_**/
 Cargo.lock
+work_dir
+cache

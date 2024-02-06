@@ -312,23 +312,29 @@ where
                 .flatten()
                 .unwrap_or_else(|| state.corpus().first().unwrap());
             self.set_current_scheduled(state, Some(id))?;
-            info!("Currently scheduled corpus ID: {}", id.clone().to_string());
-            let current_input = state.corpus().get(id).unwrap().clone().into_inner().input().clone();
-            info!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
-            match current_input.unwrap().data.clone() {
-                // If has currently scheduled data, check whether signature is included
-                Some(data) => {
-                    let scheduled_sig = data.function.clone();
-                    //Skip current signature, if unfuzzed -- note: testcase function is [0,0,0,0] for half, it means what? fallback?
-                    if !state.is_favored(&scheduled_sig) &&  state.rand_mut().below(100) < 95 {
-                        return self.next(state)
+            // 95% chance to check favored if has favored
+            if state.has_favored() && state.rand_mut().below(100) < 95 {
+                info!("Currently scheduled corpus ID: {}", id.clone().to_string());
+                let current_input = state.corpus().get(id).unwrap().clone().into_inner().input().clone();
+                info!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
+                match current_input.unwrap().data.clone() {
+                    // If has currently scheduled data, check whether signature is included
+                    Some(data) => {
+                        let scheduled_sig = data.function.clone();
+                        // 95% chance to skip unfavored
+                        //Skip current signature, if unfuzzed -- note: testcase function is [0,0,0,0] for half, it means what? fallback?
+                        if !state.is_favored(&scheduled_sig) &&  state.rand_mut().below(100) < 95 {
+                            return self.next(state)
+                        }
+                        return Ok(id)
                     }
-                    return Ok(id)
+                    // Otherwise, use this input; TODO: Check contract ID
+                    None => {
+                        return Ok(id)
+                    }
                 }
-                // Otherwise, use this input; TODO: Check contract ID
-                None => {
-                    return Ok(id)
-                }
+            } else {
+                return Ok(id)
             }
         }
     }

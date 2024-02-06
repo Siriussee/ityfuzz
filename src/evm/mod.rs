@@ -270,6 +270,11 @@ pub struct EvmArgs {
     #[cfg(feature = "use_presets")]
     #[arg(long, default_value = "")]
     preset_file_path: String,
+
+    /// Favored file. If specified, will load the favored file and match favored signatures
+    #[cfg(feature = "use_favored")]
+    #[arg(long, default_value = "")]
+    favored_file_path: String,
 }
 
 enum EVMTargetType {
@@ -724,6 +729,8 @@ pub fn evm_main(args: EvmArgs) {
         },
         #[cfg(feature = "use_presets")]
         preset_file_path: args.preset_file_path,
+        #[cfg(feature = "use_favored")]
+        favored_file_path: args.favored_file_path,
         load_corpus: args.load_corpus,
     };
 

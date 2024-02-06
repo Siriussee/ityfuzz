@@ -253,8 +253,9 @@ pub fn evm_fuzzer(
         state.init_presets(has_preset_match, matched_templates.clone(), sig_to_addr_abi_map);
     }
 
+    #[cfg(feature = "use_favored")]
     {
-        let favored_templates = ExploitTemplate::from_filename("./tests/presets/favored_sigs.json".to_owned());
+        let favored_templates = ExploitTemplate::from_filename(config.favored_file_path.clone());
         state.init_favored(favored_templates.clone());
     }
 

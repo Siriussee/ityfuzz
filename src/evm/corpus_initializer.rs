@@ -71,6 +71,7 @@ where
     state: &'a mut EVMFuzzState,
     #[cfg(feature = "use_presets")]
     presets: Vec<&'a dyn Preset<EVMInput, EVMState, SC>>,
+    #[cfg(feature = "use_favored")]
     favored: Vec<&'a dyn Preset<EVMInput, EVMState, SC>>,
     work_dir: String,
 }
@@ -176,6 +177,7 @@ where
             state,
             #[cfg(feature = "use_presets")]
             presets: vec![],
+            #[cfg(feature = "use_favored")]
             favored: vec![],
             work_dir,
         }
@@ -186,6 +188,7 @@ where
         self.presets.push(preset);
     }
 
+    #[cfg(feature = "use_favored")]
     pub fn register_favored(&mut self, favored: &'a dyn Preset<EVMInput, EVMState, SC>) {
         self.favored.push(favored);
     }
