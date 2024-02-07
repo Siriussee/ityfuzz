@@ -317,19 +317,23 @@ where
                 info!("Currently scheduled corpus ID: {}", id.clone().to_string());
                 let current_input = state.corpus().get(id).unwrap().clone().into_inner().input().clone();
                 info!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
-                match current_input.unwrap().data.clone() {
+                match current_input.as_ref().unwrap().data.clone() {
                     // If has currently scheduled data, check whether signature is included
                     Some(data) => {
                         let scheduled_sig = data.function.clone();
                         // 95% chance to skip unfavored
                         //Skip current signature, if unfuzzed -- note: testcase function is [0,0,0,0] for half, it means what? fallback?
-                        if !state.is_favored(&scheduled_sig) &&  state.rand_mut().below(100) < 95 {
+                        if !state.is_favored_signature(&scheduled_sig) &&  state.rand_mut().below(100) < 95 {
                             return self.next(state)
                         }
                         return Ok(id)
                     }
-                    // Otherwise, use this input; TODO: Check contract ID
+                    // Otherwise, check contract ID. If contract is favored, use this input; Otherwise, 80% chance to keep going
                     None => {
+                        let scheduled_contract = current_input.unwrap().contract.clone();
+                        if !state.is_favored_contract(&scheduled_contract) &&  state.rand_mut().below(100) < 95 {
+                            return self.next(state)
+                        }
                         return Ok(id)
                     }
                 }

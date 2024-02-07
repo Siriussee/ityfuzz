@@ -157,9 +157,14 @@ pub trait HasFavored {
     // Returns if current run has favored signatures
     fn has_favored(&self) -> bool;
     // Returns whether a signature is favored
-    fn is_favored (
+    fn is_favored_signature (
         &mut self,
         signature: &[u8; 4],
+    ) -> bool;
+
+    fn is_favored_contract (
+        &mut self,
+        address: &EVMAddress,
     ) -> bool;
 }
 
@@ -240,6 +245,9 @@ where
     // Allow adding favored signatures
     pub favored_signatures: Vec<[u8; 4]>,
 
+    // Allow adding favored contracts
+    pub favored_contracts: Vec<EVMAddress>,
+
     pub sig_to_addr_abi_map: std::collections::HashMap<[u8; 4], (EVMAddress, BoxedABI)>,
 
     pub phantom: std::marker::PhantomData<(VI, Addr)>,
@@ -318,6 +326,7 @@ where
             phantom: Default::default(),
             interesting_signatures: Vec::new(),
             favored_signatures: Vec::new(),
+            favored_contracts: Vec::new(),
             sig_to_addr_abi_map: Default::default(),
         }
     }
@@ -891,18 +900,28 @@ impl<VI, VS, Loc, Addr, Out, CI> HasFavored for FuzzState<VI, VS, Loc, Addr, Out
             for sig in template.function_sigs {
                 self.favored_signatures.push(sig.value);
             }
+            for contract in template.contracts {
+                self.favored_contracts.push(contract);
+            }
         }
     }
     fn has_favored(&self) -> bool {
-        !self.favored_signatures.is_empty()
+        !self.favored_signatures.is_empty() || !self.favored_contracts.is_empty()
     }
 
     // Returns whether a signature is favored
-    fn is_favored (
+    fn is_favored_signature (
         &mut self,
         signature: &[u8; 4],
     ) -> bool {
         return self.favored_signatures.contains(signature)
+    }
+
+    fn is_favored_contract (
+        &mut self,
+        contract: &EVMAddress,
+    ) -> bool {
+        return self.favored_contracts.contains(contract)
     }
 }
 

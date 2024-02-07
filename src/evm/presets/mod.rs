@@ -40,6 +40,8 @@ pub struct ExploitTemplate {
     pub exploit_name: String,
     pub function_sigs: Vec<FunctionSig>,
     pub calls: Vec<FunctionSig>,
+    #[cfg(feature="use_favored")]
+    pub contracts: Vec<EVMAddress>
 }
 
 impl ExploitTemplate {
