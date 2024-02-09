@@ -1,0 +1,11 @@
+[
+  {"calls": [],
+    "exploit_name": "SEAMAN_exp",
+    "function_sigs": ["0xa9059cbb", "0x5c11d795", "0x095ea7b3"],
+    "contracts": ["0x55d398326f99059fF775485246999027B3197955",
+      "0x6bc9b4976ba6f8C9574326375204eE469993D038",
+      "0x6637914482670f91F43025802b6755F27050b0a6",
+      "0xDB95FBc5532eEb43DeEd56c8dc050c930e31017e"
+    ]
+  }
+]
