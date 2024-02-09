@@ -1,0 +1,19 @@
+[
+  {"calls": ["0xd0e30db0", "0x23b872dd", "0xfff6cae9"],
+    "exploit_name": "Novo_exp",
+    "function_sigs": ["0x095ea7b3",
+      "0xd0e30db0",
+      "0x022c0d9f",
+      "0xfff6cae9",
+      "0xa9059cbb",
+      "0x5c11d795",
+      "0x23b872dd"],
+  "contracts": [
+    "0xEeBc161437FA948AAb99383142564160c92D2974",
+    "0xa0787daad6062349f63b7c228cbfd5d8a3db08f1",
+    "0x3463a663de4ccc59c8b21190f81027096f18cf2a",
+    "0x6Fb2020C236BBD5a7DDEb07E14c9298642253333",
+    "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+    "0x128cd0Ae1a0aE7e67419111714155E1B1c6B2D8D"
+  ]}
+]

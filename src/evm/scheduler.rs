@@ -1,3 +1,4 @@
+use tracing::debug;
 use libafl::prelude::HasRand;
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
@@ -314,9 +315,9 @@ where
             self.set_current_scheduled(state, Some(id))?;
             // 95% chance to check favored if has favored
             if state.has_favored() && state.rand_mut().below(100) < 95 {
-                info!("Currently scheduled corpus ID: {}", id.clone().to_string());
+                debug!("Currently scheduled corpus ID: {}", id.clone().to_string());
                 let current_input = state.corpus().get(id).unwrap().clone().into_inner().input().clone();
-                info!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
+                debug!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
                 match current_input.as_ref().unwrap().data.clone() {
                     // If has currently scheduled data, check whether signature is included
                     Some(data) => {
