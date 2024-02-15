@@ -101,6 +101,8 @@ where
                 randomness: vec![0],
                 repeat: 1,
                 swap_data: HashMap::new(),
+                state_mutated: Default::default(),
+                corpus_id: Default::default(),
             }
         }
         .as_any()
@@ -110,6 +112,7 @@ where
     ) as Testcase<I>;
     tc.set_exec_time(Duration::from_secs(0));
     let idx = state.corpus_mut().add(tc).expect("failed to add");
+    debug!("Adding to corpus -- Flashloan #{};", idx);
     scheduler.on_add(state, idx).expect("failed to call scheduler on_add");
 }
 

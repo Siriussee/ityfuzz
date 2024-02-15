@@ -39,7 +39,8 @@ use libafl::{
 };
 use libafl_bolts::current_time;
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::info;
+use tracing::{debug, info};
+use serde_json::json;
 
 use crate::{
     evm::{host::JMP_MAP, solution, utils::prettify_concise_inputs},
@@ -276,16 +277,19 @@ where
 }
 
 #[cfg(feature = "print_txn_corpus")]
-pub static mut DUMP_FILE_COUNT: usize = 0;
+pub static mut DUMP_INPUT_FILE_COUNT: usize = 0;
+
+#[cfg(feature = "print_txn_corpus")]
+pub static mut DUMP_STATE_FILE_COUNT: usize = 0;
 
 pub static mut REPLAY: bool = false;
 
 #[macro_export]
-macro_rules! dump_file {
-    ($state: expr, $corpus_path: expr, $print: expr) => {{
+macro_rules! dump_input_file {
+    ($state: expr, $corpus_path: expr, $print: expr, $input: expr, $corpus_idx: expr) => {{
         if !unsafe { REPLAY } {
             unsafe {
-                DUMP_FILE_COUNT += 1;
+                DUMP_INPUT_FILE_COUNT += 1;
             }
 
             let tx_trace = $state.get_execution_result().new_state.trace.clone();
@@ -308,12 +312,39 @@ macro_rules! dump_file {
             if !path.exists() {
                 std::fs::create_dir_all(path).unwrap();
             }
-            let mut file = File::create(format!("{}/{}", $corpus_path, unsafe { DUMP_FILE_COUNT })).unwrap();
+            let mut file = File::create(format!("{}/{}", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
             file.write_all(data.as_bytes()).unwrap();
 
             let mut replayable_file =
-                File::create(format!("{}/{}_replayable", $corpus_path, unsafe { DUMP_FILE_COUNT })).unwrap();
+                File::create(format!("{}/{}_replayable", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
             replayable_file.write_all(txn_text_replayable.as_bytes()).unwrap();
+
+            // write to input origin
+            let data = json!({
+                "new_corpus_id": $corpus_idx,
+                "state_mutated": $input.get_state_mutated().clone(),
+                "from_corpus_id": $input.get_original_corpus_id().clone()
+            });
+            let mut corpus_origin_file = File::create(format!("{}/{}_input_corpus_origin", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
+            corpus_origin_file.write_all(data.to_string().as_bytes()).unwrap();
+        }
+    }};
+}
+
+macro_rules! dump_state_file {
+    ($state: expr, $corpus_path: expr, $print: expr, $input: expr, $corpus_idx: expr) => {{
+        if !unsafe { REPLAY } {
+            unsafe {
+                DUMP_STATE_FILE_COUNT += 1;
+            }
+            let data = json!({
+                "new_corpus_id": $corpus_idx,
+                "state_mutated": $input.get_state_mutated().clone(),
+                "from_corpus_id": $input.get_original_corpus_id().clone()
+            });
+            // write to state origin
+            let mut corpus_origin_file = File::create(format!("{}/{}_state_corpus_origin", $corpus_path, unsafe { DUMP_STATE_FILE_COUNT })).unwrap();
+            corpus_origin_file.write_all(data.to_string().as_bytes()).unwrap();
         }
     }};
 }
@@ -323,7 +354,7 @@ macro_rules! dump_txn {
     ($corpus_path: expr, $input: expr) => {{
         if !unsafe { REPLAY } {
             unsafe {
-                DUMP_FILE_COUNT += 1;
+                DUMP_INPUT_FILE_COUNT += 1;
             }
             // write to file
             let path = Path::new($corpus_path.as_str());
@@ -336,11 +367,11 @@ macro_rules! dump_txn {
             let txn_text = concise_input.serialize_string();
             let txn_text_replayable = String::from_utf8(concise_input.serialize_concise()).unwrap();
 
-            let mut file = File::create(format!("{}/{}_seed", $corpus_path, unsafe { DUMP_FILE_COUNT })).unwrap();
+            let mut file = File::create(format!("{}/{}_seed", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
             file.write_all(txn_text.as_bytes()).unwrap();
 
             let mut replayable_file = File::create(format!("{}/{}_seed_replayable", $corpus_path, unsafe {
-                DUMP_FILE_COUNT
+                DUMP_INPUT_FILE_COUNT
             }))
             .unwrap();
             replayable_file.write_all(txn_text_replayable.as_bytes()).unwrap();
@@ -393,6 +424,7 @@ where
         executor.observers_mut().pre_exec_all(state, &input)?;
         mark_feature_time!(state, PerfFeature::PreExecObservers);
 
+
         // execute the input
         start_timer!(state);
         let exitkind = executor.run_target(self, state, manager, &input)?;
@@ -439,7 +471,14 @@ where
                 &mut self.infant_scheduler,
                 input.get_state_idx(),
             );
-
+            debug!("Adding to corpus -- interesting state #{};", state_idx);
+            // Debugging prints
+            #[cfg(feature = "print_txn_corpus")]
+            {
+                debug!("Dumping file for corpus# {}; current state dump file count is: {}", state_idx, unsafe{DUMP_STATE_FILE_COUNT});
+                let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
+                dump_state_file!(state, corpus_dir, true, &input, state_idx);
+            }
             if self
                 .infant_result_feedback
                 .is_interesting(state, manager, &input, observers, &exitkind)?
@@ -459,13 +498,6 @@ where
 
             if is_corpus {
                 res = ExecuteInputResult::Corpus;
-
-                // Debugging prints
-                #[cfg(feature = "print_txn_corpus")]
-                {
-                    let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
-                    dump_file!(state, corpus_dir, true);
-                }
             }
         }
 
@@ -475,6 +507,14 @@ where
             let mut testcase = Testcase::new(input.clone());
             self.feedback.append_metadata(state, observers, &mut testcase)?;
             corpus_idx = state.corpus_mut().add(testcase)?;
+            debug!("Adding to corpus -- interesting input #{};", corpus_idx);
+            // Debugging prints
+            #[cfg(feature = "print_txn_corpus")]
+            {
+                debug!("Dumping file for corpus# {}; current input dump file count is: {}", corpus_idx, unsafe{DUMP_INPUT_FILE_COUNT});
+                let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
+                dump_input_file!(state, corpus_dir, true, &input, corpus_idx);
+            }
             self.infant_scheduler
                 .report_corpus(state.get_infant_state_state(), state_idx);
             self.scheduler.on_add(state, corpus_idx)?;
@@ -509,7 +549,7 @@ where
 
                 // Fire the event for CLI
                 if send_events {
-                    // TODO set None for fast targets
+                    // This doesn't affect algorithm. Libafl uses it to report progress
                     let observers_buf = if manager.configuration() == EventConfig::AlwaysUnique {
                         None
                     } else {

@@ -36,6 +36,7 @@ use crate::{
 };
 use crate::state::{HasCurrentInputIdx, HasExecutionResult, HasPresets};
 use tracing::info;
+use tracing::debug;
 
 pub struct CoverageStage<OT> {
     pub last_corpus_idx: usize,
@@ -269,6 +270,8 @@ where
                 }
                 exec.execute(last_input, state);
             }
+
+            debug!("Saving trace for corpus# {}", i);
 
             self.call_printer
                 .deref()

@@ -28,7 +28,7 @@ use super::{scheduler::ABIScheduler, srcmap::SOURCE_MAP_PROVIDER};
 /// Add all potential calls with default args to the corpus
 use crate::evm::abi::{get_abi_type_boxed, BoxedABI};
 #[cfg(feature = "print_txn_corpus")]
-use crate::fuzzer::DUMP_FILE_COUNT;
+use crate::fuzzer::DUMP_INPUT_FILE_COUNT;
 use crate::{
     dump_txn,
     evm::{
@@ -543,6 +543,8 @@ where
             randomness: vec![0],
             repeat: 1,
             swap_data: HashMap::new(),
+            corpus_id: Default::default(),
+            state_mutated: Default::default(),
         };
         add_input_to_corpus!(self.state, &mut self.scheduler, input.clone(), artifacts);
         #[cfg(feature = "print_txn_corpus")]

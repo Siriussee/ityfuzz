@@ -96,7 +96,7 @@ pub trait EVMInputT {
 }
 
 /// EVM Input
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct EVMInput {
     /// Input type
     pub input_type: EVMInputTy,
@@ -146,6 +146,12 @@ pub struct EVMInput {
     /// Swap data
     #[serde(skip_deserializing)]
     pub swap_data: HashMap<String, SwapInfo>,
+
+    /// If current input is executed with mutated state
+    pub state_mutated: bool,
+
+    /// The corpusID current input comes from
+    pub corpus_id: usize,
 }
 
 /// EVM Input Minimum for Deserializing
@@ -342,6 +348,8 @@ impl ConciseEVMInput {
                 randomness: self.randomness.clone(),
                 repeat: self.repeat,
                 swap_data: self.swap_data.clone(),
+                state_mutated: Default::default(),
+                corpus_id: Default::default(),
             },
             self.call_leak,
         )
@@ -1106,6 +1114,22 @@ impl VMInputT<EVMState, EVMAddress, EVMAddress, ConciseEVMInput> for EVMInput {
         exec_res: &ExecutionResult<EVMAddress, EVMAddress, EVMState, Out, ConciseEVMInput>,
     ) -> ConciseEVMInput {
         ConciseEVMInput::from_input(self, exec_res)
+    }
+
+    fn add_state_mutated(&mut self, mutated: bool) {
+        self.state_mutated = mutated
+    }
+
+    fn add_original_corpus_id(&mut self, corpus_id: usize) {
+        self.corpus_id = corpus_id
+    }
+
+    fn get_state_mutated(&self) -> bool {
+        return self.state_mutated
+    }
+
+    fn get_original_corpus_id(&self) -> usize {
+        return self.corpus_id
     }
 }
 

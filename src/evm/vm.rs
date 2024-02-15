@@ -1254,6 +1254,8 @@ mod tests {
             randomness: vec![],
             repeat: 1,
             swap_data: HashMap::new(),
+            state_mutated: Default::default(),
+            corpus_id: Default::default(),
         };
 
         let mut state = FuzzState::new(0);
@@ -1292,6 +1294,8 @@ mod tests {
             randomness: vec![],
             repeat: 1,
             swap_data: HashMap::new(),
+            state_mutated: Default::default(),
+            corpus_id: Default::default(),
         };
 
         let execution_result_5 = evm_executor.execute(&input_5, &mut state);

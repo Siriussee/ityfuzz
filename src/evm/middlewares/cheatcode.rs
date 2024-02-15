@@ -1262,6 +1262,8 @@ mod tests {
                     randomness: vec![],
                     repeat: 1,
                     swap_data: HashMap::new(),
+                    state_mutated: Default::default(),
+                    corpus_id: Default::default(),
                 };
                 let mut state = FuzzState::new(0);
                 // deposit some ETH to the test contract

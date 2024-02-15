@@ -486,6 +486,8 @@ mod tests {
             randomness: vec![],
             repeat: 1,
             swap_data: HashMap::new(),
+            state_mutated: Default::default(),
+            corpus_id: Default::default(),
         };
 
         let res = evm_executor.execute(&input, &mut state);

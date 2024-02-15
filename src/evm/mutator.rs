@@ -26,6 +26,7 @@ use crate::{
     input::{ConciseSerde, VMInputT},
     state::{HasCaller, HasItyState, HasPresets, InfantStateState},
 };
+use crate::state::HasCurrentInputIdx;
 
 /// [`AccessPattern`] records the access pattern of the input during execution.
 /// This helps to determine what is needed to be fuzzed. For instance, we don't
@@ -198,7 +199,7 @@ where
 impl<VS, Loc, Addr, I, S, SC, CI> Mutator<I, S> for FuzzMutator<VS, Loc, Addr, SC, CI>
 where
     I: VMInputT<VS, Loc, Addr, CI> + Input + EVMInputT,
-    S: State + HasRand + HasMaxSize + HasItyState<Loc, Addr, VS, CI> + HasCaller<Addr> + HasMetadata + HasPresets,
+    S: State + HasRand + HasMaxSize + HasItyState<Loc, Addr, VS, CI> + HasCaller<Addr> + HasMetadata + HasPresets + HasCurrentInputIdx,
     SC: Scheduler<State = InfantStateState<Loc, Addr, VS, CI>>,
     VS: Default + VMStateT + EVMStateT,
     Addr: PartialEq + Debug + Serialize + DeserializeOwned + Clone,
@@ -210,9 +211,12 @@ where
     fn mutate(&mut self, state: &mut S, input: &mut I, _stage_idx: i32) -> Result<MutationResult, Error> {
         // if the VM state of the input is not initialized, swap it with a state
         // initialized
+        let mut state_mutated = false;
+        let original_corpus_id = state.get_current_input_idx();
         if !input.get_staged_state().initialized {
             let concrete = state.get_infant_state(&mut self.infant_scheduler).unwrap();
             input.set_staged_state(concrete.1, concrete.0);
+            state_mutated = true;
         }
 
         // use exploit template
@@ -223,6 +227,8 @@ where
                     Some((addr, abi)) => {
                         input.set_contract_and_abi(addr, Some(abi));
                         input.mutate(state);
+                        input.add_state_mutated(state_mutated);
+                        input.add_original_corpus_id(original_corpus_id);
                         return Ok(MutationResult::Mutated);
                     }
                     None => {
@@ -261,6 +267,7 @@ where
                     if Self::ensures_constraint(input, state, &new_state.state, new_state.state.get_constraints()) {
                         mutated = true;
                         input.set_staged_state(new_state, idx);
+                        state_mutated = true;
                     }
                 }
             }
@@ -284,7 +291,8 @@ where
                 if input.get_input_type() != Borrow {
                     turn_to_step!();
                 }
-
+                input.add_state_mutated(state_mutated);
+                input.add_original_corpus_id(original_corpus_id);
                 return Ok(MutationResult::Mutated);
             }
         }
@@ -368,6 +376,8 @@ where
             }
             tries += 1;
         }
+        input.add_state_mutated(state_mutated);
+        input.add_original_corpus_id(original_corpus_id);
         Ok(res)
     }
 }

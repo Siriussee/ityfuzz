@@ -10,6 +10,7 @@ use primitive_types::U512;
 use revm_interpreter::Interpreter;
 use revm_primitives::Bytecode;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 use crate::evm::{
     host::FuzzHost,
@@ -68,6 +69,7 @@ where
     let mut tc = Testcase::new(input.clone()) as Testcase<EVMInput>;
     tc.set_exec_time(Duration::from_secs(0));
     let idx = state.corpus_mut().add(tc).expect("failed to add");
+    debug!("Adding to corpus -- middleware #{};", idx);
     host.scheduler
         .on_add(state, idx)
         .expect("failed to call scheduler on_add");
