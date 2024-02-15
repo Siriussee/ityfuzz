@@ -59,12 +59,11 @@ where
     /// Get the ID of the VM state in the infant state corpus
     fn get_state_idx(&self) -> usize;
 
-    /// TODO: set/get the mutation log of current input
-    /// want info: state_mutated (bool, get from mutator), original_corpus_id (usize, get from state get_current_input_idx)
-    /// for each new corpus item, has all these info available
-    fn add_state_mutated(&mut self, mutated: bool);
+    /// Set whether the current input had state mutated
+    fn set_state_mutated(&mut self, mutated: bool);
 
-    fn add_original_corpus_id(&mut self, corpus_id: usize);
+    /// Set the original input corpus id of current input
+    fn set_original_corpus_id(&mut self, corpus_id: usize);
 
     fn get_state_mutated(&self) -> bool;
 

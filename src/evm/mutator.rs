@@ -227,8 +227,8 @@ where
                     Some((addr, abi)) => {
                         input.set_contract_and_abi(addr, Some(abi));
                         input.mutate(state);
-                        input.add_state_mutated(state_mutated);
-                        input.add_original_corpus_id(original_corpus_id);
+                        input.set_state_mutated(state_mutated);
+                        input.set_original_corpus_id(original_corpus_id);
                         return Ok(MutationResult::Mutated);
                     }
                     None => {
@@ -291,8 +291,8 @@ where
                 if input.get_input_type() != Borrow {
                     turn_to_step!();
                 }
-                input.add_state_mutated(state_mutated);
-                input.add_original_corpus_id(original_corpus_id);
+                input.set_state_mutated(state_mutated);
+                input.set_original_corpus_id(original_corpus_id);
                 return Ok(MutationResult::Mutated);
             }
         }
@@ -376,8 +376,8 @@ where
             }
             tries += 1;
         }
-        input.add_state_mutated(state_mutated);
-        input.add_original_corpus_id(original_corpus_id);
+        input.set_state_mutated(state_mutated);
+        input.set_original_corpus_id(original_corpus_id);
         Ok(res)
     }
 }

@@ -1116,11 +1116,11 @@ impl VMInputT<EVMState, EVMAddress, EVMAddress, ConciseEVMInput> for EVMInput {
         ConciseEVMInput::from_input(self, exec_res)
     }
 
-    fn add_state_mutated(&mut self, mutated: bool) {
+    fn set_state_mutated(&mut self, mutated: bool) {
         self.state_mutated = mutated
     }
 
-    fn add_original_corpus_id(&mut self, corpus_id: usize) {
+    fn set_original_corpus_id(&mut self, corpus_id: usize) {
         self.corpus_id = corpus_id
     }
 

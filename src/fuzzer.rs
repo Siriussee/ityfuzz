@@ -321,9 +321,10 @@ macro_rules! dump_input_file {
 
             // write to input origin
             let data = json!({
-                "new_corpus_id": $corpus_idx,
+                "new_input_id": $corpus_idx,
                 "state_mutated": $input.get_state_mutated().clone(),
-                "from_corpus_id": $input.get_original_corpus_id().clone()
+                "from_input_id": $input.get_original_corpus_id().clone(),
+                "from_state_id": $input.get_state_idx().clone()
             });
             let mut corpus_origin_file = File::create(format!("{}/{}_input_corpus_origin", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
             corpus_origin_file.write_all(data.to_string().as_bytes()).unwrap();
@@ -338,9 +339,10 @@ macro_rules! dump_state_file {
                 DUMP_STATE_FILE_COUNT += 1;
             }
             let data = json!({
-                "new_corpus_id": $corpus_idx,
+                "new_state_id": $corpus_idx,
                 "state_mutated": $input.get_state_mutated().clone(),
-                "from_corpus_id": $input.get_original_corpus_id().clone()
+                "from_input_id": $input.get_original_corpus_id().clone(),
+                "from_state_id": $input.get_state_idx().clone()
             });
             // write to state origin
             let mut corpus_origin_file = File::create(format!("{}/{}_state_corpus_origin", $corpus_path, unsafe { DUMP_STATE_FILE_COUNT })).unwrap();
