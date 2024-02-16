@@ -285,7 +285,7 @@ pub static mut DUMP_STATE_FILE_COUNT: usize = 0;
 pub static mut REPLAY: bool = false;
 
 #[macro_export]
-macro_rules! dump_input_file {
+macro_rules! dump_file {
     ($state: expr, $corpus_path: expr, $print: expr, $input: expr, $corpus_idx: expr) => {{
         if !unsafe { REPLAY } {
             unsafe {
@@ -318,13 +318,21 @@ macro_rules! dump_input_file {
             let mut replayable_file =
                 File::create(format!("{}/{}_replayable", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
             replayable_file.write_all(txn_text_replayable.as_bytes()).unwrap();
+        }
+    }};
+}
 
+#[macro_export]
+macro_rules! dump_input_origin {
+    ($state: expr, $corpus_path: expr, $print: expr, $input: expr, $corpus_idx: expr) => {{
+        if !unsafe { REPLAY } {
             // write to input origin
             let data = json!({
                 "new_input_id": $corpus_idx,
                 "state_mutated": $input.get_state_mutated().clone(),
                 "from_input_id": $input.get_original_corpus_id().clone(),
-                "from_state_id": $input.get_state_idx().clone()
+                "from_state_id": $input.get_state_idx().clone(),
+                "new_input_trace": $state.get_execution_result().new_state.trace.clone().get_concise_inputs($state),
             });
             let mut corpus_origin_file = File::create(format!("{}/{}_input_corpus_origin", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
             corpus_origin_file.write_all(data.to_string().as_bytes()).unwrap();
@@ -332,14 +340,15 @@ macro_rules! dump_input_file {
     }};
 }
 
-macro_rules! dump_state_file {
+#[macro_export]
+macro_rules! dump_state_origin {
     ($state: expr, $corpus_path: expr, $print: expr, $input: expr, $corpus_idx: expr) => {{
         if !unsafe { REPLAY } {
             unsafe {
                 DUMP_STATE_FILE_COUNT += 1;
             }
             let data = json!({
-                "new_state_id": $corpus_idx,
+                "new_state_id": $corpus_idx, // State ID 0 is not recorded -- it is statically inserted as a starter state
                 "state_mutated": $input.get_state_mutated().clone(),
                 "from_input_id": $input.get_original_corpus_id().clone(),
                 "from_state_id": $input.get_state_idx().clone()
@@ -479,7 +488,7 @@ where
             {
                 debug!("Dumping file for corpus# {}; current state dump file count is: {}", state_idx, unsafe{DUMP_STATE_FILE_COUNT});
                 let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
-                dump_state_file!(state, corpus_dir, true, &input, state_idx);
+                dump_state_origin!(state, corpus_dir, true, &input, state_idx);
             }
             if self
                 .infant_result_feedback
@@ -515,7 +524,8 @@ where
             {
                 debug!("Dumping file for corpus# {}; current input dump file count is: {}", corpus_idx, unsafe{DUMP_INPUT_FILE_COUNT});
                 let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
-                dump_input_file!(state, corpus_dir, true, &input, corpus_idx);
+                dump_file!(state, corpus_dir, true, &input, corpus_idx);
+                dump_input_origin!(state, corpus_dir, true, &input, corpus_idx);
             }
             self.infant_scheduler
                 .report_corpus(state.get_infant_state_state(), state_idx);

@@ -22,15 +22,17 @@ use libafl_bolts::impl_serdeany;
 use revm_primitives::{Bytecode, Env};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
-
+use serde_json::json;
 use super::{scheduler::ABIScheduler, srcmap::SOURCE_MAP_PROVIDER};
 /// Utilities to initialize the corpus
 /// Add all potential calls with default args to the corpus
 use crate::evm::abi::{get_abi_type_boxed, BoxedABI};
 #[cfg(feature = "print_txn_corpus")]
-use crate::fuzzer::DUMP_INPUT_FILE_COUNT;
+use crate::fuzzer::{REPLAY, DUMP_STATE_FILE_COUNT, DUMP_INPUT_FILE_COUNT};
+use crate::input::VMInputT;
 use crate::{
     dump_txn,
+    dump_input_origin,
     evm::{
         blaz::builder::BuildJobResult,
         bytecode_analyzer,
@@ -51,7 +53,6 @@ use crate::{
         },
         vm::{EVMExecutor, EVMState},
     },
-    fuzzer::REPLAY,
     generic_vm::vm_executor::GenericVM,
     input::ConciseSerde,
     state::HasCaller,
@@ -425,6 +426,8 @@ where
             .corpus_mut()
             .add(tc)
             .expect("failed to add");
+        let corpus_dir = format!("{}/corpus", self.work_dir.as_str());
+
         self.infant_scheduler
             .on_add(&mut self.state.infant_states_state, idx)
             .expect("failed to call infant scheduler on_add");
@@ -550,7 +553,8 @@ where
         #[cfg(feature = "print_txn_corpus")]
         {
             let corpus_dir = format!("{}/corpus", self.work_dir.as_str());
-            dump_txn!(corpus_dir, &input)
+            dump_txn!(corpus_dir, &input);
+            //dump_input_origin!(state, corpus_dir, true, &input, self.state.corpus_mut().last().unwrap());
         }
         #[cfg(feature = "use_presets")]
         {
