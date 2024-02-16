@@ -332,7 +332,7 @@ macro_rules! dump_input_origin {
                 "state_mutated": $input.get_state_mutated().clone(),
                 "from_input_id": $input.get_original_corpus_id().clone(),
                 "from_state_id": $input.get_state_idx().clone(),
-                "new_input_trace": $state.get_execution_result().new_state.trace.clone().get_concise_inputs($state),
+                "new_trace": $state.get_execution_result().new_state.trace.clone().get_concise_inputs($state),
             });
             let mut corpus_origin_file = File::create(format!("{}/{}_input_corpus_origin", $corpus_path, unsafe { DUMP_INPUT_FILE_COUNT })).unwrap();
             corpus_origin_file.write_all(data.to_string().as_bytes()).unwrap();
@@ -351,7 +351,8 @@ macro_rules! dump_state_origin {
                 "new_state_id": $corpus_idx, // State ID 0 is not recorded -- it is statically inserted as a starter state
                 "state_mutated": $input.get_state_mutated().clone(),
                 "from_input_id": $input.get_original_corpus_id().clone(),
-                "from_state_id": $input.get_state_idx().clone()
+                "from_state_id": $input.get_state_idx().clone(),
+                "new_trace": $state.get_execution_result().new_state.trace.clone().get_concise_inputs($state),
             });
             // write to state origin
             let mut corpus_origin_file = File::create(format!("{}/{}_state_corpus_origin", $corpus_path, unsafe { DUMP_STATE_FILE_COUNT })).unwrap();
