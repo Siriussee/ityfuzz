@@ -12,12 +12,14 @@ use libafl::{
     state::{HasCorpus, UsesState},
     Error,
 };
+use libafl::inputs::Input;
 use libafl_bolts::{
     impl_serdeany,
     rands::Rand,
 };
 use revm_primitives::HashSet;
 use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 use tracing::info;
 
 use super::{
@@ -34,7 +36,9 @@ use crate::{
     input::VMInputT,
     power_sched::{PowerMutationalStageWithId, TestcaseScoreWithId},
 };
-use crate::state::HasFavored;
+use crate::generic_vm::vm_state::VMStateT;
+use crate::input::ConciseSerde;
+use crate::state::{FuzzState, HasExecutionResult, HasFavored, HasInfantStateState};
 
 /// The status of the branch, whether it is covered on true, false or both
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -205,6 +209,7 @@ impl<S> PowerABIScheduler<S> {
     }
 }
 
+// LibAFL scheduler must implement UsesState trait. UsesState requires user to define a Self::State type that will be enforced
 impl<S> UsesState for PowerABIScheduler<S>
 where
     S: UsesInput,
@@ -329,7 +334,7 @@ where
                         }
                         return Ok(id)
                     }
-                    // Otherwise, check contract ID. If contract is favored, use this input; Otherwise, 80% chance to keep going
+                    // Otherwise, check contract ID. If contract is favored, use this input; Otherwise, 95% chance to keep going
                     None => {
                         let scheduled_contract = current_input.unwrap().contract.clone();
                         if !state.is_favored_contract(&scheduled_contract) &&  state.rand_mut().below(100) < 95 {
@@ -387,7 +392,7 @@ where
 {
     fn on_add_artifacts(
         &mut self,
-        state: &mut S,
+        state: &mut Self::State,
         idx: CorpusId,
         artifacts: &EVMInitializationArtifacts,
     ) -> Result<(), Error> {
@@ -409,39 +414,50 @@ where
 /// The power assigned to each corpus entry
 /// This result is used for power scheduling
 #[derive(Debug, Clone)]
-pub struct CorpusPowerABITestcaseScore<S> {
-    phantom: PhantomData<S>,
+pub struct CorpusPowerABITestcaseScore<S, VI, VS, Loc, Addr, Out, CI> {
+    phantom: PhantomData<(S, VI, VS, Loc, Addr, Out, CI)>,
 }
 
-impl<S> TestcaseScoreWithId<S> for CorpusPowerABITestcaseScore<S>
+impl<S, VI, VS, Loc, Addr, Out, CI> TestcaseScoreWithId<S, VI, VS, Loc, Addr, Out, CI> for CorpusPowerABITestcaseScore<S, VI, VS, Loc, Addr, Out, CI>
 where
     S: HasCorpus + HasMetadata,
+    VI: VMInputT<VS, Loc, Addr, CI> + Input,
+    VS: Default + VMStateT,
+    Addr: Serialize + DeserializeOwned + Debug + Clone,
+    Loc: Serialize + DeserializeOwned + Debug + Clone,
+    Out: Default + Into<Vec<u8>> + Clone,
+    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
-    fn compute(state: &S, entry: &mut Testcase<S::Input>, idx: CorpusId) -> Result<f64, Error> {
+    fn compute(state: &S,
+               entry: &mut Testcase<S::Input>,
+               id: CorpusId,
+               prev_inputs: Vec<CI>) -> Result<f64, Error>
+    {
         let _num_lines = match entry.metadata::<PowerABITestcaseMetadata>() {
             Ok(meta) => meta.lines,
             Err(_e) => 1, // FIXME: should not happen
         };
-        // TODO: more sophisticated power score
         let uncov_branch = {
             let meta = state.metadata_map().get::<UncoveredBranchesMetadata>().unwrap();
-            meta.testcase_to_uncovered_branches.get(&idx).unwrap_or(&0).to_owned() + 1
+            meta.testcase_to_uncovered_branches.get(&id).unwrap_or(&0).to_owned() + 1
         };
 
-        let mut power = uncov_branch as f64 * 32.0;
+        let mut naive_power = uncov_branch as f64 * 32.0;
 
-        if power >= 3200.0 {
-            power = 3200.0;
+        if naive_power >= 3200.0 {
+            naive_power = 3200.0;
         }
 
-        if power <= 32.0 {
-            power = 32.0;
+        if naive_power <= 32.0 {
+            naive_power = 32.0;
         }
 
-        Ok(power)
+        // TODO: Get current entry's trace, and target trace's length of subsequence match with ideal trace
+        debug!("Computing power score for input state with previous trace: {:?}", serde_json::to_string(&prev_inputs));
+        Ok(naive_power)
     }
 }
 
 /// The standard powerscheduling stage
-pub type PowerABIMutationalStage<E, EM, I, M, Z> =
-    PowerMutationalStageWithId<E, CorpusPowerABITestcaseScore<<E as UsesState>::State>, EM, I, M, Z>;
+pub type PowerABIMutationalStage<S, E, EM, I, M, Z, VI, VS, Loc, Addr, Out, CI> =
+    PowerMutationalStageWithId<E, CorpusPowerABITestcaseScore<S, VI, VS, Loc, Addr, Out, CI>, EM, I, M, Z, VI, VS, Loc, Addr, Out, CI>;

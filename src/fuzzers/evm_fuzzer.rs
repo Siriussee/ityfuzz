@@ -69,6 +69,7 @@ use crate::{
     scheduler::SortedDroppingScheduler,
     state::{FuzzState, HasCaller, HasExecutionResult, HasPresets, HasFavored},
 };
+use crate::power_sched::PowerMutationalStageWithId;
 
 #[allow(clippy::type_complexity)]
 pub fn evm_fuzzer(
@@ -307,7 +308,7 @@ pub fn evm_fuzzer(
     let mutator: EVMFuzzMutator = FuzzMutator::new(infant_scheduler.clone());
 
     state.metadata_map_mut().insert(UncoveredBranchesMetadata::new());
-    let std_stage = PowerABIMutationalStage::new(mutator);
+    let std_stage: PowerMutationalStageWithId<_, _, _, _, _, _, EVMInput, EVMState, revm_primitives::B160, revm_primitives::B160, Vec<u8>, ConciseEVMInput>  = PowerABIMutationalStage::new(mutator);
 
     let call_printer_mid = Rc::new(RefCell::new(CallPrinter::new(artifacts.address_to_name.clone())));
 
@@ -318,7 +319,7 @@ pub fn evm_fuzzer(
         config.work_dir.clone(),
     );
 
-    let mut stages = tuple_list!(std_stage, concolic_stage, coverage_obs_stage);
+    let mut stages: (PowerMutationalStageWithId<_, _, _, _, _, _, EVMInput, EVMState, revm_primitives::B160, revm_primitives::B160, Vec<u8>, ConciseEVMInput>, _) = tuple_list!(std_stage, concolic_stage, coverage_obs_stage);
 
     let mut executor = FuzzExecutor::new(evm_executor_ref.clone(), tuple_list!(jmp_observer));
 
