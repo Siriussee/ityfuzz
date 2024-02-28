@@ -34,7 +34,7 @@ where
     fn compute(state: &S,
                entry: &mut Testcase<S::Input>,
                id: CorpusId,
-               prev_inputs: Vec<CI>) -> Result<f64, Error>;
+               prev_inputs: Vec<[u8;4]>) -> Result<f64, Error>;
 }
 
 /// The mutational stage using power schedules
@@ -84,7 +84,7 @@ where
     #[allow(clippy::cast_sign_loss)]
     fn iterations(&self, state: &mut E::State, corpus_idx: CorpusId) -> Result<u64, Error> {
         // Update handicap
-        let prev_inputs = state.get_execution_result().new_state.trace.clone().get_concise_inputs(state);
+        let prev_inputs = state.get_execution_result().new_state.trace.clone().get_function_calls(state);
         let mut testcase = state.corpus().get(corpus_idx)?.borrow_mut();
         let score = F::compute(state, &mut *testcase, corpus_idx, prev_inputs)? as u64;
         Ok(score)

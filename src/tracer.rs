@@ -18,6 +18,7 @@ use crate::{
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TxnTrace<Loc, Addr, CI> {
     pub transactions: Vec<CI>,   // Transactions
+    pub function_calls: Vec<[u8;4]>,
     pub from_idx: Option<usize>, // Starting VMState ID
     pub derived_time: u64,       // Times spent on deriving this trace
     pub phantom: std::marker::PhantomData<(Loc, Addr)>,
@@ -31,6 +32,7 @@ where
     pub(crate) fn new() -> Self {
         Self {
             transactions: Vec::new(),
+            function_calls: Vec::new(),
             from_idx: None,
             derived_time: 0,
             phantom: Default::default(),
@@ -46,6 +48,8 @@ where
     pub fn add_input(&mut self, input: CI) {
         self.transactions.push(input);
     }
+
+    pub fn add_function_call(&mut self, function_call: [u8;4]) { self.function_calls.push(function_call); }
 
     /// Convert the trace to a human-readable string
     pub fn to_string<VS, S>(&self, state: &mut S) -> String
@@ -129,6 +133,38 @@ where
         let mut res = Self::get_concise_inputs(&testcase_input.as_ref().unwrap().trace.clone(), state);
 
         res.append(&mut self.transactions.clone());
+        res
+    }
+
+    pub fn get_function_calls<VS, S>(&self, state: &mut S) -> Vec<[u8;4]>
+        where
+            S: HasInfantStateState<Loc, Addr, VS, CI>,
+            VS: VMStateT,
+            Addr: Debug + Serialize + DeserializeOwned + Clone,
+            Loc: Debug + Serialize + DeserializeOwned + Clone,
+    {
+        // If from_idx is None, it means that the trace is from the initial state
+        if self.from_idx.is_none() {
+            return self.function_calls.clone();
+        }
+
+        let current_idx = self.from_idx.unwrap();
+        let corpus_item = state.get_infant_state_state().corpus().get(current_idx.into());
+        // This happens when full_trace feature is not enabled, the corpus item may be
+        // discarded
+        if corpus_item.is_err() {
+            return Vec::new();
+        }
+        let testcase = corpus_item.unwrap().clone().into_inner();
+        let testcase_input = testcase.input();
+        if testcase_input.is_none() {
+            return Vec::new();
+        }
+
+        // Try to reconstruct transactions leading to the current VMState recursively
+        let mut res = Self::get_function_calls(&testcase_input.as_ref().unwrap().trace.clone(), state);
+
+        res.append(&mut self.function_calls.clone());
         res
     }
 }

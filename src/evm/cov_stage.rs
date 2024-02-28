@@ -271,7 +271,7 @@ where
                 exec.execute(last_input, state);
             }
 
-            debug!("Saving trace for corpus# {}", i);
+            //debug!("Saving trace for corpus# {}", i);
 
             self.call_printer
                 .deref()

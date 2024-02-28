@@ -166,6 +166,9 @@ pub trait HasFavored {
         &mut self,
         address: &EVMAddress,
     ) -> bool;
+    fn get_sequenced_signature (
+        &self,
+    ) -> &Vec<[u8;4]>;
 }
 
 /// The global state of ItyFuzz, containing all the information needed for
@@ -244,6 +247,9 @@ where
 
     // Allow adding favored signatures
     pub favored_signatures: Vec<[u8; 4]>,
+
+    // Sequenced favored signatures
+    pub sequenced_signatures: Vec<[u8; 4]>,
 
     // Allow adding favored contracts
     pub favored_contracts: Vec<EVMAddress>,
@@ -326,6 +332,7 @@ where
             phantom: Default::default(),
             interesting_signatures: Vec::new(),
             favored_signatures: Vec::new(),
+            sequenced_signatures: Vec::new(),
             favored_contracts: Vec::new(),
             sig_to_addr_abi_map: Default::default(),
         }
@@ -903,10 +910,14 @@ impl<VI, VS, Loc, Addr, Out, CI> HasFavored for FuzzState<VI, VS, Loc, Addr, Out
             for contract in template.contracts {
                 self.favored_contracts.push(contract);
             }
+
+            for seq_sig in template.calls {
+                self.sequenced_signatures.push(seq_sig.value);
+            }
         }
     }
     fn has_favored(&self) -> bool {
-        !self.favored_signatures.is_empty() || !self.favored_contracts.is_empty()
+        !self.favored_signatures.is_empty() || !self.favored_contracts.is_empty() || !self.sequenced_signatures.is_empty()
     }
 
     // Returns whether a signature is favored
@@ -923,6 +934,10 @@ impl<VI, VS, Loc, Addr, Out, CI> HasFavored for FuzzState<VI, VS, Loc, Addr, Out
     ) -> bool {
         return self.favored_contracts.contains(contract)
     }
+
+    fn get_sequenced_signature (
+        &self,
+    ) -> &Vec<[u8;4]> { return &self.sequenced_signatures }
 }
 
 impl<VI, VS, Loc, Addr, Out, CI> HasPresets for FuzzState<VI, VS, Loc, Addr, Out, CI>

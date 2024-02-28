@@ -51,6 +51,7 @@ use crate::{
     scheduler::HasReportCorpus,
     state::{HasCurrentInputIdx, HasExecutionResult, HasInfantStateState, HasItyState, InfantStateState},
 };
+use crate::evm::scheduler::PowerABITestcaseMetadata;
 
 pub static mut RUN_FOREVER: bool = false;
 pub static mut ORACLE_OUTPUT: Vec<serde_json::Value> = vec![];
@@ -475,6 +476,20 @@ where
                 .add_input(concise_input);
         }
 
+        // Add favored sequence
+        // #[cfg(feature = "use_favored")]
+        {
+            match input.get_data_abi() {
+                Some(abi) => {
+                    state.get_execution_result_mut()
+                        .new_state
+                        .trace
+                        .add_function_call(abi.function)
+                }
+                _ => {}
+            }
+        }
+
         // add the new VM state to infant state corpus if it is interesting
         let mut state_idx = input.get_state_idx();
         if is_infant_interesting && !reverted {
@@ -483,11 +498,11 @@ where
                 &mut self.infant_scheduler,
                 input.get_state_idx(),
             );
-            debug!("Adding to corpus -- interesting state #{};", state_idx);
+            //debug!("Adding to corpus -- interesting state #{};", state_idx);
             // Debugging prints
             #[cfg(feature = "print_txn_corpus")]
             {
-                debug!("Dumping file for corpus# {}; current state dump file count is: {}", state_idx, unsafe{DUMP_STATE_FILE_COUNT});
+                //debug!("Dumping file for corpus# {}; current state dump file count is: {}", state_idx, unsafe{DUMP_STATE_FILE_COUNT});
                 let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
                 dump_state_origin!(state, corpus_dir, true, &input, state_idx);
             }
@@ -519,11 +534,11 @@ where
             let mut testcase = Testcase::new(input.clone());
             self.feedback.append_metadata(state, observers, &mut testcase)?;
             corpus_idx = state.corpus_mut().add(testcase)?;
-            debug!("Adding to corpus -- interesting input #{};", corpus_idx);
+            //debug!("Adding to corpus -- interesting input #{};", corpus_idx);
             // Debugging prints
             #[cfg(feature = "print_txn_corpus")]
             {
-                debug!("Dumping file for corpus# {}; current input dump file count is: {}", corpus_idx, unsafe{DUMP_INPUT_FILE_COUNT});
+                //debug!("Dumping file for corpus# {}; current input dump file count is: {}", corpus_idx, unsafe{DUMP_INPUT_FILE_COUNT});
                 let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
                 dump_file!(state, corpus_dir, true, &input, corpus_idx);
                 dump_input_origin!(state, corpus_dir, true, &input, corpus_idx);

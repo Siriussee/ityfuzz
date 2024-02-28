@@ -1,6 +1,7 @@
 use tracing::debug;
 use libafl::prelude::HasRand;
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
+use std::cmp::{max, min};
 
 /// Corpus schedulers for ItyFuzz
 /// Used to determine which input / VMState to fuzz next
@@ -36,6 +37,7 @@ use crate::{
     input::VMInputT,
     power_sched::{PowerMutationalStageWithId, TestcaseScoreWithId},
 };
+use crate::evm::abi::BoxedABI;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::ConciseSerde;
 use crate::state::{FuzzState, HasExecutionResult, HasFavored, HasInfantStateState};
@@ -320,9 +322,9 @@ where
             self.set_current_scheduled(state, Some(id))?;
             // 95% chance to check favored if has favored
             if state.has_favored() && state.rand_mut().below(100) < 95 {
-                debug!("Currently scheduled corpus ID: {}", id.clone().to_string());
+                //debug!("Currently scheduled corpus ID: {}", id.clone().to_string());
                 let current_input = state.corpus().get(id).unwrap().clone().into_inner().input().clone();
-                debug!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
+                //debug!("Currently scheduled input: {}", serde_json::to_string(&current_input.clone().unwrap()).unwrap());
                 match current_input.as_ref().unwrap().data.clone() {
                     // If has currently scheduled data, check whether signature is included
                     Some(data) => {
@@ -420,7 +422,7 @@ pub struct CorpusPowerABITestcaseScore<S, VI, VS, Loc, Addr, Out, CI> {
 
 impl<S, VI, VS, Loc, Addr, Out, CI> TestcaseScoreWithId<S, VI, VS, Loc, Addr, Out, CI> for CorpusPowerABITestcaseScore<S, VI, VS, Loc, Addr, Out, CI>
 where
-    S: HasCorpus + HasMetadata,
+    S: HasCorpus<Input = EVMInput> + HasMetadata + HasFavored,
     VI: VMInputT<VS, Loc, Addr, CI> + Input,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
@@ -431,7 +433,7 @@ where
     fn compute(state: &S,
                entry: &mut Testcase<S::Input>,
                id: CorpusId,
-               prev_inputs: Vec<CI>) -> Result<f64, Error>
+               prev_inputs: Vec<[u8;4]>) -> Result<f64, Error>
     {
         let _num_lines = match entry.metadata::<PowerABITestcaseMetadata>() {
             Ok(meta) => meta.lines,
@@ -442,19 +444,58 @@ where
             meta.testcase_to_uncovered_branches.get(&id).unwrap_or(&0).to_owned() + 1
         };
 
-        let mut naive_power = uncov_branch as f64 * 32.0;
+        let mut power = uncov_branch as f64 * 32.0;
 
-        if naive_power >= 3200.0 {
-            naive_power = 3200.0;
+        if power >= 3200.0 {
+            power = 3200.0;
         }
 
-        if naive_power <= 32.0 {
-            naive_power = 32.0;
+        if power <= 32.0 {
+            power = 32.0;
         }
 
         // TODO: Get current entry's trace, and target trace's length of subsequence match with ideal trace
-        debug!("Computing power score for input state with previous trace: {:?}", serde_json::to_string(&prev_inputs));
-        Ok(naive_power)
+        //debug!("Computing power score for input state with current input: {:?}", serde_json::to_string(&entry));
+        //debug!("Computing power score for input state with previous trace: {:?}", serde_json::to_string(&prev_inputs));
+
+
+        if state.has_favored() {
+            // Do longest common subsequence
+            let mut current = prev_inputs.clone();
+            match entry.input().clone().unwrap().get_data_abi() {
+                Some(abi) => {
+                    current.push(abi.function)
+                }
+                _ => {}
+            }
+            let favored = state.get_sequenced_signature();
+            let mut dp = vec![vec![0.0_f64; current.len() + 1]; favored.len() + 1];
+
+            // Traverse each row and column, row wise
+            for i in 1..favored.len() + 1 {
+                for j in 1..current.len() + 1 {
+
+                    // If both string have same character, dp[i][j] = dp[i-1][j-1]
+                    if favored[i - 1] == current[j - 1] {
+                        dp[i][j] = dp[i - 1][j - 1] + 1.0;
+                    }
+
+                    // Else, find maximum of dp[i-1][j] and dp[i][j-1]
+                    else {
+                        dp[i][j] = dp[i - 1][j].max(dp[i][j - 1])
+                    }
+
+                }
+            }
+
+            let lcs = dp[favored.len()][current.len()];
+            // debug!("Current sequences of functions: {:?}", current);
+            // debug!("Favored sequences of functions: {:?}", favored);
+            // debug!("Longest common subsequence length: {:?}", lcs);
+            power = (32.0 * power).min(power + power * lcs)
+        }
+
+        Ok(power)
     }
 }
 
