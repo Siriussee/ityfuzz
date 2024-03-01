@@ -1,7 +1,8 @@
 [
   {"calls": ["0xd0e30db0", "0x23b872dd", "0xfff6cae9"],
     "exploit_name": "Novo_exp",
-    "function_sigs": ["0x095ea7b3",
+    "function_sigs": [
+      "0x095ea7b3",
       "0xd0e30db0",
       "0x022c0d9f",
       "0xfff6cae9",

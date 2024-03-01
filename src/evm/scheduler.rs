@@ -484,7 +484,6 @@ where
                     else {
                         dp[i][j] = dp[i - 1][j].max(dp[i][j - 1])
                     }
-
                 }
             }
 
@@ -494,7 +493,6 @@ where
             // debug!("Longest common subsequence length: {:?}", lcs);
             power = (32.0 * power).min(power + power * lcs)
         }
-
         Ok(power)
     }
 }

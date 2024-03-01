@@ -1,0 +1,11 @@
+[{
+  "calls": ["0x1e83409a", "0xb45b25a9", "0xaff8d492", "0xbc9dac1d"],
+  "exploit_name": "Yyds_exp",
+  "function_sigs": [
+    "0xaff8d492",
+    "0x022c0d9f",
+    "0xbc9dac1d",
+    "0xa9059cbb",
+    "0x1e83409a",
+    "0xb45b25a9"]
+}]

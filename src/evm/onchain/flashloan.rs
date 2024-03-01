@@ -112,7 +112,7 @@ where
     ) as Testcase<I>;
     tc.set_exec_time(Duration::from_secs(0));
     let idx = state.corpus_mut().add(tc).expect("failed to add");
-    debug!("Adding to corpus -- Flashloan #{};", idx);
+    // debug!("Adding to corpus -- Flashloan #{};", idx);
     scheduler.on_add(state, idx).expect("failed to call scheduler on_add");
 }
 

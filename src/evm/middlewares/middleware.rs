@@ -69,7 +69,7 @@ where
     let mut tc = Testcase::new(input.clone()) as Testcase<EVMInput>;
     tc.set_exec_time(Duration::from_secs(0));
     let idx = state.corpus_mut().add(tc).expect("failed to add");
-    debug!("Adding to corpus -- middleware #{};", idx);
+    // debug!("Adding to corpus -- middleware #{};", idx);
     //dump_input_origin!(state, corpus_dir, true, &input, self.state.corpus_mut().last().unwrap());
     host.scheduler
         .on_add(state, idx)
