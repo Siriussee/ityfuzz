@@ -469,28 +469,30 @@ where
                 _ => {}
             }
             let favored = state.get_sequenced_signature();
-            let mut dp = vec![vec![0.0_f64; current.len() + 1]; favored.len() + 1];
+            // DP[i][j] = length of longest substring in favored[0...j] that is a subsequence in current[0...i]
+            let mut dp = vec![vec![0.0_f64; favored.len() + 1]; current.len() + 1];
 
             // Traverse each row and column, row wise
-            for i in 1..favored.len() + 1 {
-                for j in 1..current.len() + 1 {
-
-                    // If both string have same character, dp[i][j] = dp[i-1][j-1]
-                    if favored[i - 1] == current[j - 1] {
-                        dp[i][j] = dp[i - 1][j - 1] + 1.0;
+            for i in 1..current.len() + 1 {
+                for j in 1..favored.len() + 1 {
+                    if current[i - 1] == favored[j - 1] {
+                        if dp[i - 1][j - 1] != 0.0 || j == 1 {
+                            dp[i][j] = dp[i - 1][j - 1] + 1.0;
+                        }
                     }
-
-                    // Else, find maximum of dp[i-1][j] and dp[i][j-1]
                     else {
-                        dp[i][j] = dp[i - 1][j].max(dp[i][j - 1])
+                        dp[i][j] = dp[i - 1][j]
                     }
                 }
             }
 
-            let lcs = dp[favored.len()][current.len()];
-            // debug!("Current sequences of functions: {:?}", current);
-            // debug!("Favored sequences of functions: {:?}", favored);
-            // debug!("Longest common subsequence length: {:?}", lcs);
+            let mut lcs = dp[current.len()][0];
+            for i in 1..favored.len() + 1 {
+                lcs = lcs.max(dp[current.len()][i]);
+            }
+            debug!("Current sequences of functions: {:?}", current);
+            debug!("Favored sequences of functions: {:?}", favored);
+            debug!("Longest subsequence of favored in current: {:?}", lcs);
             power = (32.0 * power).min(power + power * lcs)
         }
         Ok(power)
