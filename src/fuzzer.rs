@@ -621,6 +621,10 @@ where
                     .join("\n");
 
                 println!("\n\n\n😊😊 Found vulnerabilities! \n\n");
+                #[cfg(feature = "print_txn_corpus")]
+                {
+                    println!("{}", format!("Vulnerable corpus at: {}_input_corpus_origin", unsafe { DUMP_INPUT_FILE_COUNT }));
+                }
                 let cur_report =
                     format!(
                     "================ Description ================\n{}\n================ Trace ================\n{}\n",
